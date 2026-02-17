@@ -48,6 +48,17 @@ void parseSettings0x04Response(u_int8_t *, int);
 void configurationRequest();
 void updateTemperatureHistory();
 
+static inline uint8_t normalizePumpState(uint8_t rawState, uint8_t pumpCapability)
+{
+  // Some single-speed pumps report ON as 2 in status frames.
+  // Normalize to logical ON=1 for capability-aware consistency.
+  if (pumpCapability == 1 && rawState == 2)
+  {
+    return 1;
+  }
+  return rawState;
+}
+
 TickTwo temperatureHistory(updateTemperatureHistory, .75 * 60 * 1000); // Initial interval is 1 minute, then hourly on first execution
 
 void spaMessageSetup()
@@ -525,12 +536,12 @@ bool parseStatusMessage(u_int8_t *message, int length)
     spaStatusData.heatingState = TwoBit(hexArray[10], 4);
     spaStatusData.heatOn->add(spaStatusData.heatingState);
 
-    spaStatusData.pump1 = TwoBit(hexArray[11], 0);
-    spaStatusData.pump2 = TwoBit(hexArray[11], 2);
-    spaStatusData.pump3 = TwoBit(hexArray[11], 4);
-    spaStatusData.pump4 = TwoBit(hexArray[11], 6);
-    spaStatusData.pump5 = TwoBit(hexArray[12], 0);
-    spaStatusData.pump6 = TwoBit(hexArray[12], 2);
+    spaStatusData.pump1 = normalizePumpState(TwoBit(hexArray[11], 0), spaConfigurationData.pump1);
+    spaStatusData.pump2 = normalizePumpState(TwoBit(hexArray[11], 2), spaConfigurationData.pump2);
+    spaStatusData.pump3 = normalizePumpState(TwoBit(hexArray[11], 4), spaConfigurationData.pump3);
+    spaStatusData.pump4 = normalizePumpState(TwoBit(hexArray[11], 6), spaConfigurationData.pump4);
+    spaStatusData.pump5 = normalizePumpState(TwoBit(hexArray[12], 0), spaConfigurationData.pump5);
+    spaStatusData.pump6 = normalizePumpState(TwoBit(hexArray[12], 2), spaConfigurationData.pump6);
 
     spaStatusData.circ = bitRead(hexArray[13], 1);
     spaStatusData.blower = TwoBit(hexArray[13], 2);
